@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>uProgress - File Upload jQuery Plugin</title>
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript" src="../src/uprogress.js"></script>
+    <style type="text/css">
+        #progress-result {
+            list-style-type: none;
+            padding: 0;
+        }
+        #progress-result li {
+            margin-top: 5px;
+            background-color: #8b9dc3;
+            color: white;
+            padding: 5px 0;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+<h1>uProgress - File Upload jQuery Plugin</h1>
+<input type="file" id="files" name="files[]" multiple />
+<ul id="progress-result"></ul>
+<script type="text/javascript">
+jQuery(function($) {
+    $('#files').Progress(
+    {
+        url: 'upload.php?filename={filename}&progress={progress}'
+    });
+});
+</script>
+</body>
+</html>
