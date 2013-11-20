@@ -13,42 +13,54 @@
             progressEl: '#progress-result',
             onBlocksize:  this.onBlocksize,
             onProgress: this.onProgress,
-            onError:    this.onError
-        }
+            onError:    this.onError,
+            debug:      true
+        };
         
         var plugin = this;
 
-        plugin.settings = {}
+        plugin.settings = {};
 
         var init = function() {
+            //console.log(el);
             plugin.settings = $.extend({}, defaults, options);
             plugin.el       = el;
             plugin.files    = [];
             plugin.data     = [];
             plugin.ajax     = [];
-        }
+        };
         
         // call the "constructor" method
         init();
-        plugin.listen();
     }
     
     /**
+     * Displays messages in the console
+     * @param {string} msg
+     * @returns {Progress}
+     */
+    Progress.prototype.log = function(msg) {
+        if (
+            this.settings.debug
+            && typeof console !== 'undefined'
+            && typeof console.warn === 'function'
+        ) {
+            console.warn(msg);
+        }
+        return this;
+    };
+    
+    /**
      * Starts to listen to target element
-     * @returns {Boolean}
+     * @returns {Progress}
      */
     Progress.prototype.listen = function ()
     {
+        this.log('Progress: listen to '+$(this.el).selector);
         var me = this;
-        if (this.el.length === 0) return false;
-        this.el.on(
-            'change', 
-            function (evt) {
-                me.handleFileSelect(evt, me) 
-            }
-        );
-        return true;
-    }
+        $(this.el).on('change', function (evt) {me.handleFileSelect(evt, me)});
+        return this;
+    };
     
     /**
      * Event callback for resolving block size
@@ -138,19 +150,27 @@
         this.ajax[i].setRequestHeader("Content-type", 'text/plain; charset=x-user-defined');
         var me = this;
         this.ajax[i].onreadystatechange = function() {
-            if (this.readyState == 4 && this.status == 200) {
-                var response = JSON.parse(this.responseText);
-                next = start + size;
-                if (!response.result) {
-                    return me.settings.onError(i, progress, filename);
+            if (this.readyState === 4) {
+                if (this.status !== 200) {
+                    me.log('Progress: something went wrong!');
+                } else {
+                    var response = JSON.parse(this.responseText);
+                    next = start + size;
+                    if (!response.result) {
+                        return me.settings.onError(i, progress, filename);
+                    }
+                    me.settings.onProgress(i, progress, filename);
+                    if (next > total) return;
+                    start = next;
+                    if (start + size > total) {
+                        size = total - start;
+                    }
+                    if (size > 0) {
+                        me.upload(start, size, i);
+                    } else {
+                        me.log('Progress: '+me.files[i].name+' complete!');
+                    }
                 }
-                me.settings.onProgress(i, progress, filename);
-                if (next > total) return;
-                start = next;
-                if (start + size > total) {
-                    size = total - start;
-                }
-                if (size > 0) me.upload(start, size, i);
             }
         }
         this.ajax[i].send(part);
@@ -164,7 +184,7 @@
      */
     Progress.prototype.handleFileSelect = function (evt, me)
     {
-        console.log(evt);
+        this.log('Progress: get files information...');
         var files = evt.target.files;
         for (var i = 0, f; f = files[i]; i++) {
             me.files.push(f);
@@ -176,6 +196,7 @@
                     var total = me.data[j].byteLength;
                     var size = me.settings.onBlocksize(total);
                     if (total < size) size = total;
+                    me.log('Progress: start progress for '+me.files[j].name);
                     me.upload(0, size, j);
                 };
             })(k);
@@ -189,7 +210,13 @@
      * @returns {Progress}
      */
     $.fn.Progress = function(options) {
-        return new Progress(this, options);
+        var p = new Progress(this, options);
+        if (this.length === 0) {
+            p.log('Progress: invalid target '+this.selector+'. Aborting');
+            return false;
+        }
+        p.listen();
+        return p;
     }
 
 }( jQuery ));
